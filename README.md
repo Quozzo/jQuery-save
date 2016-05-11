@@ -18,22 +18,30 @@ The id used to save the data, which acts as the key when retrieved.
 **method**
 
 Type: String
+
 If the jQuery method used to retrive the data does not require an argument then a string may be used, such as "html".
 
 Type: Array
+
 If the method requires an argument then the values must be entered as an array containing the strings, such as ["attr", "title"].
 
 Type: Function
+
 A function may be passed in to acquire more complex information. The return value of the function will be the data that is saved.
+
 
 `.save([flatten [, last saved ] )`
 
 **flatten**
+
 Type: Boolean
+
 If true, the array of objects will be reduced to the first data entered, seporated by its ID.
 
 **last saved** 
+
 Type: Boolean
+
 If also passed, the array of objects will be reduced to the last saved data, seporated by its ID.
 
 
