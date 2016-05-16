@@ -19,17 +19,16 @@
     }
     return root;
   }
-  
-  
+
   $.fn.save = function(obj, deep) {
     //returns the data
     if (!obj || typeof obj === "string" || obj === true) {
       var mapping = (typeof obj === "string") ? function(v) {
-          return v[1][obj];
-        } : function(v) {
-          return v[1];
-        },
-        rootData = root.call(this).data('save').map(mapping);
+        return v[1][obj];
+      } : function(v) {
+        return v[1];
+      },
+      rootData = root.call(this).data('save').map(mapping);
       //flattens the array to first saved, or last saved if true, true.
       if (obj === true) {
         rootData = rootData[(deep ? "reduceRight" : "reduce")](function(curr, prev) {
@@ -38,43 +37,33 @@
       }
       return rootData;
     }
-    
+
     //retrieves the data
-    var data = this.map(function() {
-      var data = {},
-        $this = $(this);
-      for (var key in obj) {
+    var r = root.call(this), rootSave = r.data('save'), data = [];
+    this.each(function() {
+      var info = {}, $this = $(this);
+      if(rootSave) var index = inArray(this, rootSave);
+      for (var key in obj) {        
         if (typeof obj[key] === "string") {
-          data[key] = $this[obj[key]]();
+          info[key] = $this[obj[key]]();
         } else if (typeof obj[key] === "object") {
-          data[key] = $this[obj[key][0]](obj[key][1]);
+          info[key] = $this[obj[key][0]](obj[key][1]);
         } else if (typeof obj[key] === "function") {
-          data[key] = obj[key].call(this);
+          prevData = index === -1 ? undefined : rootSave[index][1][key];
+          info[key] = obj[key].call(this, prevData);
         }
       }
-      return [
-        [this, data]
-      ];
-    }).get();
-    
-    //saves it to the root element
-    var r = root.call(this),
-      rootSave = r.data('save');
-    if (rootSave) {
-      for (var i = 0, k = data.length; i < k; i++) {
-        var index = inArray(data[i][0], rootSave);
-        if (index > -1) {
-          rootSave[index][1] = $.extend(true, {}, rootSave[index][1], data[i][1]);
-        } else {
-          rootSave[rootSave.length] = data[i];
-        }
+      if(!rootSave){
+        data.push([this, $.extend(true, {}, info)]);
+      }else if(index === -1){
+        rootSave.push([this, $.extend(true, {}, info)]);
+      }else{
+        rootSave[index][1] = $.extend(true, {}, rootSave[index][1], info);
       }
-    } else {
-      r.data('save', data);
-    }
+    });    
+    if(!rootSave) r.data('save', data);
 
     //returns this for chainability, kinda the whole point ;)
     return this;
   };
-  
 })(jQuery);
