@@ -24,11 +24,13 @@
     //returns the data
     if (!obj || typeof obj === "string" || obj === true) {
       var mapping = (typeof obj === "string") ? function(v) {
-        return v[1][obj];
-      } : function(v) {
-        return v[1];
-      },
-      rootData = root.call(this).data('save').map(mapping);
+          return v[1][obj];
+        } : function(v) {
+          return v[1];
+        },
+        rootData = root.call(this).data('save');
+      if(!rootData) return undefined;
+      rootData = rootData.map(mapping);
       //flattens the array to first saved, or last saved if true, true.
       if (obj === true) {
         rootData = rootData[(deep ? "reduceRight" : "reduce")](function(curr, prev) {
@@ -36,9 +38,26 @@
         });
       }
       return rootData;
+    }else if(obj instanceof $){
+    	var r = root.call(this), rootSave = r.data('save'), rO = root.call(obj), objSave = rO.data('save');
+      if(!objSave){
+      	return this.add(obj);
+      }else if(!rootSave){
+      	r.data('save', objSave);
+      }else if(rootSave && objSave){
+        $.each(objSave, function(i, v){
+          var index = inArray(v[0], rootSave);
+          if(index === -1){
+            rootSave.push(v);
+          }else{
+            rootSave[index][1] = $.extend(true, {}, rootSave[index][1], v[1]);
+          }
+        });
+      }
+      return this.add(obj);
     }
 
-    //retrieves the data
+    //retrieves and saves the data
     var r = root.call(this), rootSave = r.data('save'), data = [];
     this.each(function() {
       var info = {}, $this = $(this);
@@ -49,12 +68,12 @@
         } else if (typeof obj[key] === "object") {
           info[key] = $this[obj[key][0]](obj[key][1]);
         } else if (typeof obj[key] === "function") {
-          prevData = index === -1 ? undefined : rootSave[index][1][key];
+        	prevData = index === -1 ? undefined : rootSave[index][1][key];
           info[key] = obj[key].call(this, prevData);
         }
       }
       if(!rootSave){
-        data.push([this, $.extend(true, {}, info)]);
+      	data.push([this, $.extend(true, {}, info)]);
       }else if(index === -1){
         rootSave.push([this, $.extend(true, {}, info)]);
       }else{
@@ -66,4 +85,5 @@
     //returns this for chainability, kinda the whole point ;)
     return this;
   };
+
 })(jQuery);
