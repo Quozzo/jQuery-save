@@ -1,86 +1,66 @@
 (function($) {
 
-  //return the index of the item in its nested array
-  function inArray(val, arr) {
-    var i = arr.length;
-    while (i--) {
-      if (val == arr[i][0]) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
   //find the root||start of the chain.
-  function root() {
-    var root = this.filter(':first');
-    while (root.prevObject.prevObject) {
-      root = root.prevObject;
-    }
-    return root;
-  }
+  let saved = new WeakMap(),
+    root = function() {
+      let root = this.filter(':first');
+      while (root.prevObject.prevObject) {
+        root = root.prevObject;
+      }
+      return root[0];
+    };
 
   $.fn.save = function(obj, deep) {
+
+    let r = root.call(this),
+      rootSave = saved.get(r),
+      data = rootSave || new Map();
+
     //returns the data
     if (!obj || typeof obj === "string" || obj === true) {
-      var mapping = (typeof obj === "string") ? function(v) {
-          return v[1][obj];
+      if (!rootSave) return undefined;
+      let map = [],
+        mapping = (typeof obj === "string") ? function(v) {
+          map[map.length] = v[obj];
         } : function(v) {
-          return v[1];
-        },
-        rootData = root.call(this).data('save');
-      if(!rootData) return undefined;
-      rootData = rootData.map(mapping);
+          map[map.length] = v;
+        };
+      rootSave.forEach(mapping);
       //flattens the array to first saved, or last saved if true, true.
-      if (obj === true) {
-        rootData = rootData[(deep ? "reduceRight" : "reduce")](function(curr, prev) {
-          return $.extend(prev, curr);
-        });
-      }
-      return rootData;
-    }else if(obj instanceof $){
-    	var r = root.call(this), rootSave = r.data('save'), rO = root.call(obj), objSave = rO.data('save');
-      if(!objSave){
-      	return this.add(obj);
-      }else if(!rootSave){
-      	r.data('save', objSave);
-      }else if(rootSave && objSave){
-        $.each(objSave, function(i, v){
-          var index = inArray(v[0], rootSave);
-          if(index === -1){
-            rootSave.push(v);
-          }else{
-            rootSave[index][1] = $.extend(true, {}, rootSave[index][1], v[1]);
-          }
-        });
+      if (obj === true) map = map[(deep ? "reduceRight" : "reduce")]((curr, prev) => $.extend(prev, curr));
+      return map;
+    } else if (obj instanceof $) {
+      let rO = root.call(obj),
+        objSave = saved.get(rO);
+      if (!objSave) {
+        return this.add(obj);
+      } else if (!rootSave) {
+        saved.set(r, objSave);
+      } else if (rootSave && objSave) {
+        objSave.forEach((v, k) => rootSave.set(k, $.extend(true, rootSave.get(k), v)));
       }
       return this.add(obj);
     }
 
     //retrieves and saves the data
-    var r = root.call(this), rootSave = r.data('save'), data = [];
     this.each(function() {
-      var info = {}, $this = $(this);
-      if(rootSave) var index = inArray(this, rootSave);
-      for (var key in obj) {        
+      let info = {},
+        $this = $(this),
+        index;
+      if (rootSave) index = rootSave.get(this);
+      for (let key in obj) {
         if (typeof obj[key] === "string") {
           info[key] = $this[obj[key]]();
         } else if (typeof obj[key] === "object") {
           info[key] = $this[obj[key][0]](obj[key][1]);
         } else if (typeof obj[key] === "function") {
-        	prevData = index === -1 ? undefined : rootSave[index][1][key];
+          let prevData = index ? index[key] : undefined;
           info[key] = obj[key].call(this, prevData);
         }
       }
-      if(!rootSave){
-      	data.push([this, $.extend(true, {}, info)]);
-      }else if(index === -1){
-        rootSave.push([this, $.extend(true, {}, info)]);
-      }else{
-        rootSave[index][1] = $.extend(true, {}, rootSave[index][1], info);
-      }
-    });    
-    if(!rootSave) r.data('save', data);
+      data.set(this, $.extend(true, index, info));
+    });
+    if (!rootSave) saved.set(r, data);
 
     //returns this for chainability, kinda the whole point ;)
     return this;
